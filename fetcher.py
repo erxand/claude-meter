@@ -150,7 +150,9 @@ def _api_get(path, key):
         with urllib.request.urlopen(req, timeout=30, context=_SSL_CONTEXT) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        if e.code == 401:
+        # claude.ai returns 403 (account_session_invalid) for a bad/expired
+        # session, and 401 for missing auth — both are auth failures.
+        if e.code in (401, 403):
             raise AuthError("Session key invalid or expired") from e
         raise FetchError(f"HTTP {e.code} from {path}") from e
     except urllib.error.URLError as e:
