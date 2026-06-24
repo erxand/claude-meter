@@ -17,18 +17,13 @@ so the menu bar display code is unchanged.
 import json
 import os
 import re
-import ssl
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 
-# A py2app-bundled Python has no CA bundle of its own, so default cert
-# verification fails. Point it at certifi's bundle when available.
-try:
-    import certifi
-    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-except Exception:  # noqa: BLE001 — fall back to the system default
-    _SSL_CONTEXT = ssl.create_default_context()
+# claude.ai sits behind Cloudflare, which fingerprints the TLS/HTTP client and
+# blocks plain urllib with a "Just a moment..." challenge — even with browser
+# headers. curl_cffi impersonates a real Chrome (TLS + HTTP2 fingerprint), which
+# Cloudflare lets through, the same way the original app's native URLSession does.
+from curl_cffi import requests as _http
 
 DATA_DIR = os.path.expanduser("~/.claude-meter")
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
@@ -38,18 +33,12 @@ KEYRING_ACCOUNT = "session-key"
 
 API_BASE = "https://claude.ai/api"
 
-# Browser-like headers, copied from the original, to get past Cloudflare.
+# Minimal headers; curl_cffi's impersonate=chrome supplies the matching
+# User-Agent / Sec-Fetch / Accept-* set so it lines up with the TLS fingerprint.
 _HEADERS = {
     "Accept": "application/json",
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ),
     "Referer": "https://claude.ai",
     "Origin": "https://claude.ai",
-    "Sec-Fetch-Site": "same-origin",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Dest": "empty",
 }
 
 # Order to try browsers in when reading the cookie automatically.
@@ -61,7 +50,7 @@ _WEEKLY_WINDOW = 7 * 24 * 60 * 60
 
 
 class AuthError(Exception):
-    """No valid session key / the key was rejected (401)."""
+    """No valid session key / the key was rejected (401/403)."""
 
 
 class FetchError(Exception):
@@ -143,20 +132,22 @@ def get_session_key():
 # ---------------------------------------------------------------------------
 
 def _api_get(path, key):
-    req = urllib.request.Request(
-        API_BASE + path, headers={**_HEADERS, "Cookie": f"sessionKey={key}"}
-    )
     try:
-        with urllib.request.urlopen(req, timeout=30, context=_SSL_CONTEXT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        # claude.ai returns 403 (account_session_invalid) for a bad/expired
-        # session, and 401 for missing auth — both are auth failures.
-        if e.code in (401, 403):
-            raise AuthError("Session key invalid or expired") from e
-        raise FetchError(f"HTTP {e.code} from {path}") from e
-    except urllib.error.URLError as e:
-        raise FetchError(str(getattr(e, "reason", e))) from e
+        resp = _http.get(
+            API_BASE + path,
+            headers=_HEADERS,
+            cookies={"sessionKey": key},
+            impersonate="chrome",
+            timeout=30,
+        )
+    except Exception as e:  # noqa: BLE001 — network/transport failure
+        raise FetchError(str(e)) from e
+
+    if resp.status_code == 200:
+        return resp.json()
+    if resp.status_code in (401, 403):
+        raise AuthError("Session key invalid or expired")
+    raise FetchError(f"HTTP {resp.status_code} from {path}")
 
 
 def _limit(d, window):
