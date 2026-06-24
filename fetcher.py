@@ -186,7 +186,7 @@ def fetch_usage():
 
 def read_state():
     try:
-        with open(STATE_FILE) as f:
+        with open(STATE_FILE, encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
@@ -203,7 +203,7 @@ def _write_state(payload=None, error=None):
     if error is not None:
         state["error"] = error
     tmp = STATE_FILE + ".tmp"
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=2)
     os.replace(tmp, STATE_FILE)
 
