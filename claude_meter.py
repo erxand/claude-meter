@@ -213,16 +213,32 @@ class ClaudeMeter(rumps.App):
         if not response.clicked:
             return
         text = response.text.strip()
+        if not text:
+            fetcher.clear_manual_key()
+            rumps.notification("Claude Meter", "Stored key cleared", "Using browser cookies.")
+            self.refresh_now(None)
+            return
+
         try:
-            if text:
-                fetcher.set_manual_key(text)
-                rumps.notification("Claude Meter", "Session key saved", "Refreshing…")
-            else:
-                fetcher.clear_manual_key()
-                rumps.notification("Claude Meter", "Stored key cleared", "Using browser cookies.")
-        except Exception as e:  # noqa: BLE001
+            fetcher.set_manual_key(text)
+        except Exception as e:  # noqa: BLE001 — bad format
             rumps.alert("Couldn't save key", str(e))
             return
+
+        # Validate against claude.ai right away so the user gets clear feedback.
+        try:
+            fetcher.fetch_usage()
+            rumps.notification("Claude Meter", "Session key works ✓", "Loading usage…")
+        except fetcher.AuthError:
+            rumps.alert(
+                "Key rejected by claude.ai",
+                "That session key is invalid or expired (claude.ai returned "
+                "“account_session_invalid”).\n\nRe-copy the FULL value of the "
+                "sessionKey cookie for https://claude.ai while logged in — it's "
+                "long, so make sure none of it is cut off.",
+            )
+        except Exception as e:  # noqa: BLE001 — network etc.
+            rumps.notification("Claude Meter", "Key saved, but fetch failed", str(e))
         self.refresh_now(None)
 
 

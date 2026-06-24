@@ -17,9 +17,18 @@ so the menu bar display code is unchanged.
 import json
 import os
 import re
+import ssl
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
+
+# A py2app-bundled Python has no CA bundle of its own, so default cert
+# verification fails. Point it at certifi's bundle when available.
+try:
+    import certifi
+    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except Exception:  # noqa: BLE001 — fall back to the system default
+    _SSL_CONTEXT = ssl.create_default_context()
 
 DATA_DIR = os.path.expanduser("~/.claude-meter")
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
@@ -138,7 +147,7 @@ def _api_get(path, key):
         API_BASE + path, headers={**_HEADERS, "Cookie": f"sessionKey={key}"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=_SSL_CONTEXT) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 401:

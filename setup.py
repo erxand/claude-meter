@@ -23,7 +23,7 @@ OPTIONS = {
         "LSMinimumSystemVersion": "11.0",
         "NSHumanReadableCopyright": "MIT",
     },
-    "packages": ["rumps", "browser_cookie3", "keyring"],
+    "packages": ["rumps", "browser_cookie3", "keyring", "certifi"],
     "includes": [
         "keyring.backends.macOS",
         "keyring.backends.chainer",
