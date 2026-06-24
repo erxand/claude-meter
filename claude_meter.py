@@ -60,7 +60,7 @@ def compute_display(data, now=None):
     updated = datetime.fromisoformat(data["last_updated"]).astimezone()
 
     return {
-        "title": f"{dot} {pct}% · {_fmt_clock(reset_local)}",
+        "title": f"{dot} {pct}% · {countdown}",
         "reset_line": f"Resets at {_fmt_clock(reset_local)}   ({countdown} left)",
         "used_line": f"Used {pct}% of 5-hour session",
         "bar_line": f"{bar}  {pct}%",

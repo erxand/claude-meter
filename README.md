@@ -7,7 +7,7 @@ exactly two things:
 - the **% of the session you've used**
 
 ```
-🟢 26% · 8:09 PM        ← menu bar
+🟢 26% · 2h 25m        ← menu bar
 ─────────────────────────
 Resets at 8:09 PM   (2h 25m left)
 Used 26% of 5-hour session
