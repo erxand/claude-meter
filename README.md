@@ -1,10 +1,10 @@
 # claude-meter
 
-A dead-simple macOS menu bar readout of your Claude **5-hour session**. It shows
-exactly two things:
+A dead-simple, self-contained macOS menu bar app that shows your Claude
+**5-hour session** at a glance:
 
-- the **exact wall-clock time** your session resets
-- the **% of the session you've used**
+- the **% of the session you've used**, colored by how close you are
+- how long until the session **resets** (and the exact reset time in the menu)
 
 ```
 26% · 2h 25m           ← menu bar (the "26%" is colored)
@@ -15,64 +15,76 @@ Used 26% of 5-hour session
 ─────────────────────────
 Updated 1:44 PM
 Refresh now
+Set session key…
 Quit
 ```
 
-The percentage number is colored by usage: **green under 50%, yellow 50–80%, red 80%+**.
+The percentage is **green under 50%, yellow 50–80%, red 80%+**.
 
 ## How it works
 
-This is intentionally tiny. It does **not** talk to Claude's API or scrape any
-cookies. Instead it piggybacks on the excellent
-[ClaudeMeter](https://github.com/eddmann/ClaudeMeter) by Edd Mann, which already
-runs in the background and keeps `~/.claudemeter/usage.json` up to date:
+It talks to claude.ai directly — it does **not** depend on the original
+[ClaudeMeter](https://github.com/eddmann/ClaudeMeter) app. The data flow is a
+straight port of what ClaudeMeter does (see `fetcher.py`):
 
-```json
-{
-  "session_usage": { "reset_at": "2026-06-24T20:09:59Z", "utilization": 26 }
-}
-```
+1. Get your `sessionKey` cookie for claude.ai — either a key you pasted (stored
+   in the macOS Keychain) or read straight from your browser's cookies.
+2. `GET https://claude.ai/api/organizations` → your org id.
+3. `GET https://claude.ai/api/organizations/<org>/usage` → the 5-hour / weekly /
+   Sonnet limits, each with `utilization` and `resets_at`.
 
-claude-meter just reads that file every 30 seconds and renders the session info
-the way I want it. So you need the original ClaudeMeter app installed and running.
+A background thread fetches every 60s and writes `~/.claude-meter/state.json`;
+the menu bar reads that file, so the UI never blocks on the network.
 
-## Run
+## Install
 
 ```bash
-./run.sh
+./build_app.sh
 ```
 
-First run creates a local `.venv` and installs [`rumps`](https://github.com/jaredks/rumps).
-After that it just launches. A menu bar item appears; there's no dock icon.
+This builds **`/Applications/Claude Meter.app`** — a real, double-clickable menu
+bar app with its own bundled Python venv (so it doesn't depend on this source
+folder). Then:
 
-## Start automatically at login (optional)
-
-Create `~/Library/LaunchAgents/com.xander.claude-meter.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.xander.claude-meter</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/Users/xander/other-code/claude-meter/run.sh</string>
-  </array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-</dict>
-</plist>
+```bash
+open "/Applications/Claude Meter.app"
 ```
 
-Then `launchctl load ~/Library/LaunchAgents/com.xander.claude-meter.plist`.
+A menu bar item appears; there's no dock icon.
+
+> Prefer not to build an app? `./run.sh` runs it straight from this folder
+> (creates a local `.venv` on first run). Same behavior, just from a terminal.
+
+## Getting a session key
+
+The app tries to read the `sessionKey` cookie from your browsers automatically
+(Chrome, Chromium, Brave, Edge, Arc, Vivaldi, Opera, Safari, Firefox). For
+Chrome-family browsers macOS will ask permission to read the “Chrome Safe
+Storage” key the first time — click **Always Allow**.
+
+If auto-detection doesn't work, set it manually:
+
+1. In your browser open **claude.ai** while logged in.
+2. DevTools → **Application → Cookies → https://claude.ai** → copy the value of
+   the `sessionKey` cookie (it starts with `sk-ant-`).
+3. Menu bar → **Set session key…** → paste → Save.
+
+Clearing the field in that dialog forgets the stored key and goes back to using
+browser cookies.
+
+## Start automatically at login
+
+Drag **Claude Meter.app** into **System Settings → General → Login Items**, or:
+
+```bash
+osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/Claude Meter.app", hidden:true}'
+```
 
 ## Credits
 
-Usage data and the `~/.claudemeter/usage.json` format come from
-[eddmann/ClaudeMeter](https://github.com/eddmann/ClaudeMeter) (MIT). This is just
-a personal, stripped-down UI on top of it.
+Modeled on [eddmann/ClaudeMeter](https://github.com/eddmann/ClaudeMeter) (MIT) —
+the API flow and headers come from its source. This is a personal, stripped-down
+take focused on just the 5-hour session.
 
 ## License
 
