@@ -7,7 +7,7 @@ exactly two things:
 - the **% of the session you've used**
 
 ```
-🟢 26% · 2h 25m        ← menu bar
+26% · 2h 25m           ← menu bar (the "26%" is colored)
 ─────────────────────────
 Resets at 8:09 PM   (2h 25m left)
 Used 26% of 5-hour session
@@ -18,7 +18,7 @@ Refresh now
 Quit
 ```
 
-The menu bar dot is 🟢 under 75%, 🟡 under 90%, 🔴 at/above 90%.
+The percentage number is colored by usage: **green under 50%, yellow 50–80%, red 80%+**.
 
 ## How it works
 
