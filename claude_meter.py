@@ -159,9 +159,13 @@ class ClaudeMeter(rumps.App):
 
         if not state or not state.get("usage"):
             # Nothing fetched yet, or only an error so far.
-            self.title = "…"
             err = (state or {}).get("error")
-            self.reset_item.title = "Fetching usage from claude.ai…"
+            needs_key = err and ("No session key" in err or err.startswith("auth"))
+            self.title = "⚠ key" if needs_key else "…"
+            self.reset_item.title = (
+                "No session key yet — choose “Set session key…” below"
+                if needs_key else "Fetching usage from claude.ai…"
+            )
             self.used_item.title = ""
             self.bar_item.title = ""
             self.updated_item.title = ""
