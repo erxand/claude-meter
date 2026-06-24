@@ -1,6 +1,8 @@
 .venv/
 build/
 dist/
+icon.iconset/
+icon_preview.png
 __pycache__/
 *.pyc
 .DS_Store

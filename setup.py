@@ -13,6 +13,7 @@ from setuptools import setup
 
 OPTIONS = {
     "argv_emulation": False,
+    "iconfile": "icon.icns",
     "plist": {
         "CFBundleName": "Claude Meter",
         "CFBundleDisplayName": "Claude Meter",
